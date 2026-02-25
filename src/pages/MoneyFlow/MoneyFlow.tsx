@@ -1,87 +1,145 @@
-import  { useState } from "react";
-import "./MoneyFlow.css";
+import { useMemo, useState } from "react";
 
-interface Transaction {
-  id: number;
-  description: string;
-  amount: number;
-}
+type Item = {
+  id: string;
+  descricao: string;
+  valor: number;
+};
 
-export default function MoneyFlow() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [error, setError] = useState("");
+export function MoneyFlow() {
+  const [descricao, setDescricao] = useState("");
+  const [valor, setValor] = useState("");
+  const [itens, setItens] = useState<Item[]>([]);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const totalBalance = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const saldoTotal = useMemo(() => {
+    return itens.reduce((acc, item) => acc + item.valor, 0);
+  }, [itens]);
 
-  const handleAddTransaction = () => {
-    setError("");
-    const numAmount = parseFloat(amount);
+  function adicionarItem(e: React.FormEvent) {
+    e.preventDefault();
+    setErro(null);
 
-    if (!description.trim()) {
-      setError("Descrição é obrigatória");
+    const desc = descricao.trim();
+    const valorNumero = Number(valor);
+
+    if (!desc) {
+      setErro("A descrição é obrigatória.");
       return;
     }
 
-    if (isNaN(numAmount) || numAmount <= 0) {
-      setError("Valor deve ser maior que zero");
+    if (Number.isNaN(valorNumero)) {
+      setErro("Digite um valor numérico válido.");
       return;
     }
 
-    const newTransaction: Transaction = {
-      id: Date.now(),
-      description,
-      amount: numAmount,
+    if (valorNumero === 0 || valorNumero < 0) {
+      setErro("O valor não pode ser zero ou negativo.");
+      return;
+    }
+
+    const novoItem: Item = {
+      id: crypto.randomUUID(),
+      descricao: desc,
+      valor: valorNumero,
     };
 
-    setTransactions([...transactions, newTransaction]);
-    setDescription("");
-    setAmount("");
-  };
+    setItens((prev) => [novoItem, ...prev]);
+    setDescricao("");
+    setValor("");
+  }
 
-  const handleDeleteTransaction = (id: number) => {
-    setTransactions(transactions.filter((t) => t.id !== id));
-  };
+  function removerItem(id: string) {
+    setItens((prev) => prev.filter((item) => item.id !== id));
+  }
 
   return (
-    <div className="money-flow-container">
-      <h1>Controle de Gastos</h1>
+    <div className="min-h-[calc(100vh-64px)] bg-zinc-50 p-6">
+      <div className="mx-auto w-full max-w-3xl space-y-6">
+        <header className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold text-zinc-900">MoneyFlow</h1>
+          <p className="text-sm text-zinc-500">Controle simples de gastos</p>
 
-      <div className="balance-card">
-        <h2>Saldo Total</h2>
-        <p className="balance-amount">R$ {totalBalance.toFixed(2)}</p>
-      </div>
-
-      <div className="form-section">
-        <input
-          type="text"
-          placeholder="Descrição da despesa"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Valor"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <button onClick={handleAddTransaction}>Adicionar</button>
-        {error && <p className="error-message">{error}</p>}
-      </div>
-
-      <div className="transactions-list">
-        {transactions.map((t) => (
-          <div key={t.id} className="transaction-item">
-            <div>
-              <p className="description">{t.description}</p>
-              <p className="amount">R$ {t.amount.toFixed(2)}</p>
-            </div>
-            <button onClick={() => handleDeleteTransaction(t.id)}>
-              Remover
-            </button>
+          <div className="mt-4 rounded-xl bg-zinc-900 p-4 text-white">
+            <p className="text-sm opacity-80">Saldo Total</p>
+            <p className="text-3xl font-bold">
+              R$ {saldoTotal.toFixed(2).replace(".", ",")}
+            </p>
           </div>
-        ))}
+        </header>
+
+        <section className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Novo registro</h2>
+
+          <form onSubmit={adicionarItem} className="mt-4 grid gap-3">
+            <input
+              className="w-full rounded-xl border border-zinc-300 p-3 outline-none focus:border-zinc-500"
+              type="text"
+              placeholder="Descrição (ex: Mercado)"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+            />
+
+            <input
+              className="w-full rounded-xl border border-zinc-300 p-3 outline-none focus:border-zinc-500"
+              type="number"
+              placeholder="Valor (ex: 120.50)"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              step="0.01"
+            />
+
+            {erro && (
+              <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {erro}
+              </p>
+            )}
+
+            <button
+              className="rounded-xl bg-zinc-900 p-3 font-semibold text-white hover:bg-zinc-800"
+              type="submit"
+            >
+              Adicionar
+            </button>
+
+            <p className="text-xs text-zinc-500">
+              Obs: este exercício valida para não aceitar zero/negativo.
+            </p>
+          </form>
+        </section>
+
+        <section className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Registros</h2>
+
+          {itens.length === 0 ? (
+            <p className="mt-3 text-sm text-zinc-600">
+              Nenhum item cadastrado ainda.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {itens.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between rounded-xl border p-3"
+                >
+                  <div>
+                    <p className="font-medium text-zinc-900">{item.descricao}</p>
+                    <p className="text-sm text-zinc-500">
+                      R$ {item.valor.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => removerItem(item.id)}
+                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100"
+                  >
+                    Remover
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );
